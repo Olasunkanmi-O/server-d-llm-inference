@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, List
 
+
 class HypotheticalChange(BaseModel):
     description: str
     amount: float
@@ -14,6 +15,17 @@ class ScenarioRequest(BaseModel):
     timeframe_days: Optional[int] = 180
     aggregation_days: Optional[int] = 365
     hypothetical_changes: Optional[List[HypotheticalChange]] = []
+
+
+class CashFlowProjection(BaseModel):
+    initial_impact: float
+    estimated_tax_savings: Optional[float]
+    net_effect: Optional[float]
+
+class Scenario(BaseModel):
+    recommendations: str
+    tax_implications: str
+    cash_flow_projection: CashFlowProjection
 
 class ScenarioResponse(BaseModel):
     status: str
