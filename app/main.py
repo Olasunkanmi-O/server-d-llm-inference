@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from app.routers import scenario, categorize, feedback
+from dotenv import load_dotenv
+load_dotenv()
 
 app = FastAPI(title="Financial Assistant Engine", version="1.0")
 

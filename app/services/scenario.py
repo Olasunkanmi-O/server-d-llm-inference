@@ -23,20 +23,38 @@ def build_scenario_prompt(user_request: str, recent_summary: str, agg_summary: s
         "- Highlight potential tax implications.\n"
         "- Suggest strategies for cash flow, savings, or expense management.\n"
         "- Simulate the impact of any proposed changes the user mentions.\n"
-        "- Return your response in JSON format with keys: 'recommendations', 'tax_implications', 'cash_flow_projection'."
+        "- Return your response as a flat JSON object with the following keys:\n"
+        "  - recommendations: string\n"
+        "  - tax_implications: string\n"
+        "  - cash_flow_projection: object with keys:\n"
+        "      - initial_impact: float\n"
+        "      - estimated_tax_savings: float or null\n"
+        "      - net_effect: float or null\n"
+        "Do not include nested objects, lists, or additional fields. Do not format as dialogue or markdown."
     )
 
 async def generate_scenario(full_prompt: str) -> dict:
     response = llm(full_prompt, max_tokens=1024)
 
     def extract_json_block(text: str) -> dict:
-        match = re.search(r'\{.*\}', text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group())
-            except json.JSONDecodeError as e:
-                print("⚠️ JSON parse error:", e)
+        start = text.find('{')
+        if start == -1:
+            return {}
+
+        brace_count = 0
+        for i in range(start, len(text)):
+            if text[i] == '{':
+                brace_count += 1
+            elif text[i] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    try:
+                        return json.loads(text[start:i+1])
+                    except json.JSONDecodeError as e:
+                        print("⚠️ JSON parse error:", e)
+                    break
         return {}
+
 
     raw_text = response["choices"][0]["text"]
     parsed = extract_json_block(raw_text)

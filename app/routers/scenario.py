@@ -2,11 +2,23 @@ from fastapi import APIRouter, HTTPException
 from datetime import datetime, timedelta
 from app.schemas import ScenarioRequest, ScenarioResponse, Scenario, CashFlowProjection
 from app.services.scenario import build_scenario_prompt, generate_scenario
-from app.db import get_pool
-import json
+from app.db.pool import get_pool
 from pydantic import ValidationError
+import json
 
 router = APIRouter()
+
+def validate_flat_scenario(scenario: dict) -> bool:
+    required_keys = {"recommendations", "tax_implications", "cash_flow_projection"}
+    projection_keys = {"initial_impact", "estimated_tax_savings", "net_effect"}
+    return (
+        isinstance(scenario, dict)
+        and required_keys.issubset(scenario.keys())
+        and isinstance(scenario["recommendations"], str)
+        and isinstance(scenario["tax_implications"], str)
+        and isinstance(scenario["cash_flow_projection"], dict)
+        and projection_keys.issubset(scenario["cash_flow_projection"].keys())
+    )
 
 @router.post("/scenario", response_model=ScenarioResponse)
 async def generate_financial_scenario(payload: ScenarioRequest):
@@ -73,13 +85,34 @@ async def generate_financial_scenario(payload: ScenarioRequest):
         f"Net balance over this period: £{net_balance}\n"
     )
 
-    full_prompt = build_scenario_prompt(user_request, recent_summary, agg_summary, hypothetical_summary, summary_text)
+    full_prompt = build_scenario_prompt(
+        user_request,
+        recent_summary,
+        agg_summary,
+        hypothetical_summary,
+        summary_text
+    )
 
+    scenario_result = {}
     try:
         scenario_result = await generate_scenario(full_prompt)
         scenario_response = scenario_result.get("response", {})
         confidence_score = scenario_result.get("confidence", None)
+
+        if not validate_flat_scenario(scenario_response):
+            print("⚠️ Scenario format drift detected. Falling back to default.")
+            scenario_response = {
+                "recommendations": "Unable to validate scenario.",
+                "tax_implications": "Model returned unexpected format.",
+                "cash_flow_projection": {
+                    "initial_impact": 0.0,
+                    "estimated_tax_savings": None,
+                    "net_effect": None
+                }
+            }
+
         validated_scenario = Scenario(**scenario_response)
+
     except ValidationError as ve:
         print("❌ Scenario validation failed:", ve)
         validated_scenario = Scenario(
@@ -92,6 +125,7 @@ async def generate_financial_scenario(payload: ScenarioRequest):
             )
         )
         confidence_score = None
+
     except Exception as e:
         print("❌ LLM generation failed:", e)
         validated_scenario = Scenario(
