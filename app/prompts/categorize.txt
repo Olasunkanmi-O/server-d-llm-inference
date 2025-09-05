@@ -1,0 +1,5 @@
+Categorize the following transactions. Return JSON with fields: id, category, confidence.
+
+1: Tesco (£45)
+2: AWS (£120)
+3: Trainline (£32)
