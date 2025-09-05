@@ -4,3 +4,4 @@ transformers
 torch
 safetensors
 python-dotenv
+asyncpg

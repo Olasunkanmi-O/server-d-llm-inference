@@ -1,11 +1,15 @@
 from fastapi import APIRouter
 from app.schemas import CategorizeResponse, TransactionUpdate
 from app.services.categorize import categorize_transactions
+from fastapi import Body
+from typing import List
 
 router = APIRouter()
 
+
+
 @router.post("/categorize", response_model=CategorizeResponse)
-async def categorize_route(transactions: list[TransactionUpdate]):
+async def categorize_route(transactions: List[TransactionUpdate] = Body(...)):
     categorized = await categorize_transactions([tx.dict() for tx in transactions])
     low_conf = sum(1 for tx in categorized if tx["needs_review"])
     return CategorizeResponse(
