@@ -1,4 +1,6 @@
 from llama_cpp import Llama
+import re
+import json
 
 llm = Llama(
     model_path="models/mistral-7b-instruct-v0.1.Q4_K_M.gguf",
@@ -26,8 +28,32 @@ def build_scenario_prompt(user_request: str, recent_summary: str, agg_summary: s
 
 async def generate_scenario(full_prompt: str) -> dict:
     response = llm(full_prompt, max_tokens=1024)
+
+    def extract_json_block(text: str) -> dict:
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group())
+            except json.JSONDecodeError as e:
+                print("⚠️ JSON parse error:", e)
+        return {}
+
+    raw_text = response["choices"][0]["text"]
+    parsed = extract_json_block(raw_text)
+
+    if not parsed:
+        parsed = {
+            "recommendations": "Unable to generate scenario.",
+            "tax_implications": "Please try again or refine your request.",
+            "cash_flow_projection": {
+                "initial_impact": -900.0,
+                "estimated_tax_savings": None,
+                "net_effect": None
+            }
+        }
+
     return {
-        "response": response["choices"][0]["text"],
+        "response": parsed,
         "source_model": SOURCE_MODEL,
-        "confidence": None  # Placeholder for future scoring
+        "confidence": None
     }

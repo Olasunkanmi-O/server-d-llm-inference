@@ -1,20 +1,22 @@
 from fastapi import APIRouter, HTTPException
-from app.schemas import ScenarioRequest, ScenarioResponse
-from app.services.scenario import generate_scenario, build_scenario_prompt
-from app.db.pool import get_pool
 from datetime import datetime, timedelta
+from app.schemas import ScenarioRequest, ScenarioResponse, Scenario, CashFlowProjection
+from app.services.scenario import build_scenario_prompt, generate_scenario
+from app.db import get_pool
+import json
+from pydantic import ValidationError
 
 router = APIRouter()
 
 @router.post("/scenario", response_model=ScenarioResponse)
 async def generate_financial_scenario(payload: ScenarioRequest):
     user_id = payload.user_id
-    user_request = payload.request
-    hypothetical_changes = payload.hypothetical_changes
     session_id = payload.session_id
     scenario_type = payload.scenario_type
     timeframe_days = payload.timeframe_days
     aggregation_days = payload.aggregation_days
+    user_request = payload.request
+    hypothetical_changes = payload.hypothetical_changes
 
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -30,7 +32,7 @@ async def generate_financial_scenario(payload: ScenarioRequest):
         """, user_id, recent_cutoff)
 
         aggregated_transactions = await conn.fetch("""
-            SELECT to_char(date, 'YYYY-MM') AS month, category, 
+            SELECT to_char(date, 'YYYY-MM') AS month, category,
                    SUM(amount) AS total_amount
             FROM transactions
             WHERE user_id = $1 AND date >= $2 AND date < $3
@@ -51,17 +53,16 @@ async def generate_financial_scenario(payload: ScenarioRequest):
 
     total_income = sum(tx['amount'] for tx in recent_transactions if tx['amount'] > 0)
     total_expenses = sum(-tx['amount'] for tx in recent_transactions if tx['amount'] < 0)
-    change_texts = []
 
+    change_texts = []
     for change in hypothetical_changes:
-        desc = change.description
         amt = change.amount
         cat = change.category.lower()
         if amt > 0:
             total_income += amt
         else:
             total_expenses += -amt
-        change_texts.append(f"- {desc} (£{amt}) [{cat}]")
+        change_texts.append(f"- {change.description} (£{amt}) [{cat}]")
 
     hypothetical_summary = "\n".join(change_texts) if change_texts else "No hypothetical changes."
     net_balance = total_income - total_expenses
@@ -76,10 +77,32 @@ async def generate_financial_scenario(payload: ScenarioRequest):
 
     try:
         scenario_result = await generate_scenario(full_prompt)
-        scenario_response = scenario_result.get("response", "No response from model")
+        scenario_response = scenario_result.get("response", {})
         confidence_score = scenario_result.get("confidence", None)
+        validated_scenario = Scenario(**scenario_response)
+    except ValidationError as ve:
+        print("❌ Scenario validation failed:", ve)
+        validated_scenario = Scenario(
+            recommendations="Unable to validate scenario.",
+            tax_implications="The model returned an unexpected format.",
+            cash_flow_projection=CashFlowProjection(
+                initial_impact=0.0,
+                estimated_tax_savings=None,
+                net_effect=None
+            )
+        )
+        confidence_score = None
     except Exception as e:
-        scenario_response = f"Error generating scenario: {str(e)}"
+        print("❌ LLM generation failed:", e)
+        validated_scenario = Scenario(
+            recommendations="Scenario generation failed.",
+            tax_implications=str(e),
+            cash_flow_projection=CashFlowProjection(
+                initial_impact=0.0,
+                estimated_tax_savings=None,
+                net_effect=None
+            )
+        )
         confidence_score = None
 
     async with pool.acquire() as conn:
@@ -87,11 +110,11 @@ async def generate_financial_scenario(payload: ScenarioRequest):
             INSERT INTO conversation_logs (
                 user_id, input_text, llm_response, task_type, source_model, session_id
             ) VALUES ($1, $2, $3, $4, $5, $6)
-        """, user_id, full_prompt, scenario_response, scenario_type, scenario_result.get("source_model"), session_id)
+        """, str(user_id), full_prompt, json.dumps(validated_scenario.dict()), scenario_type, scenario_result.get("source_model", "unknown"), session_id)
 
     return ScenarioResponse(
         status="success",
-        scenario=scenario_response,
+        scenario=validated_scenario,
         confidence=confidence_score,
         scenario_type=scenario_type
     )

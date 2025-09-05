@@ -17,6 +17,6 @@ class ScenarioRequest(BaseModel):
 
 class ScenarioResponse(BaseModel):
     status: str
-    scenario: str
+    scenario: Scenario
     confidence: Optional[float] = None
     scenario_type: Optional[str] = "general"

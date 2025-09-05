@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Annotated
 from datetime import date
+from typing import List, Optional
 
 class TransactionUpdate(BaseModel):
     id: int
