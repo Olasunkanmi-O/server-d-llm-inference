@@ -1,12 +1,9 @@
-from fastapi import APIRouter
-from app.schemas import CategorizeResponse, TransactionUpdate
-from app.services.categorize import categorize_transactions
-from fastapi import Body
+from fastapi import APIRouter, Body
 from typing import List
+from app.schemas import TransactionUpdate, CategorizeResponse
+from app.services.categorize import categorize_transactions
 
 router = APIRouter()
-
-
 
 @router.post("/categorize", response_model=CategorizeResponse)
 async def categorize_route(transactions: List[TransactionUpdate] = Body(...)):

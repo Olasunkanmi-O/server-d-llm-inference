@@ -1,12 +1,12 @@
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field
+from typing import Annotated
 from datetime import date
 
 class TransactionUpdate(BaseModel):
     id: int
     description: str
     amount: float
-    date: Optional[date] = None
+    date: Annotated[date | None, Field(default=None)]  # ✅ Pydantic v2-compatible
     category: str = "Uncategorized"
     needs_review: bool = True
     confidence: float = 0.0
