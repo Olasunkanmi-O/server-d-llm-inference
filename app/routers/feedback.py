@@ -4,7 +4,7 @@ from app.db.pool import get_pool
 
 router = APIRouter()
 
-@router.post("/feedback", response_model=FeedbackResponse)
+@router.post("/", response_model=FeedbackResponse)
 async def submit_feedback(payload: FeedbackRequest):
     pool = await get_pool()
 

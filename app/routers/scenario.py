@@ -21,7 +21,7 @@ def validate_flat_scenario(scenario: dict) -> bool:
         and projection_keys.issubset(scenario["cash_flow_projection"].keys())
     )
 
-@router.post("/scenario", response_model=ScenarioResponse)
+@router.post("/", response_model=ScenarioResponse)
 async def generate_financial_scenario(payload: ScenarioRequest):
     user_id = payload.user_id
     session_id = payload.session_id or str(uuid.uuid4())
