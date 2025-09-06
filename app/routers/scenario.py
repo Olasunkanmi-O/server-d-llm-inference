@@ -5,6 +5,7 @@ from app.services.scenario import build_scenario_prompt, generate_scenario
 from app.db.pool import get_pool
 from pydantic import ValidationError
 import json
+import uuid
 
 router = APIRouter()
 
@@ -23,7 +24,7 @@ def validate_flat_scenario(scenario: dict) -> bool:
 @router.post("/scenario", response_model=ScenarioResponse)
 async def generate_financial_scenario(payload: ScenarioRequest):
     user_id = payload.user_id
-    session_id = payload.session_id
+    session_id = payload.session_id or str(uuid.uuid4())
     scenario_type = payload.scenario_type
     timeframe_days = payload.timeframe_days
     aggregation_days = payload.aggregation_days
@@ -114,7 +115,7 @@ async def generate_financial_scenario(payload: ScenarioRequest):
         validated_scenario = Scenario(**scenario_response)
 
     except ValidationError as ve:
-        print("❌ Scenario validation failed:", ve)
+        print(" Scenario validation failed:", ve)
         validated_scenario = Scenario(
             recommendations="Unable to validate scenario.",
             tax_implications="The model returned an unexpected format.",
@@ -127,7 +128,7 @@ async def generate_financial_scenario(payload: ScenarioRequest):
         confidence_score = None
 
     except Exception as e:
-        print("❌ LLM generation failed:", e)
+        print(" LLM generation failed:", e)
         validated_scenario = Scenario(
             recommendations="Scenario generation failed.",
             tax_implications=str(e),
@@ -144,11 +145,12 @@ async def generate_financial_scenario(payload: ScenarioRequest):
             INSERT INTO conversation_logs (
                 user_id, input_text, llm_response, task_type, source_model, session_id
             ) VALUES ($1, $2, $3, $4, $5, $6)
-        """, str(user_id), full_prompt, json.dumps(validated_scenario.dict()), scenario_type, scenario_result.get("source_model", "unknown"), session_id)
+        """, user_id, full_prompt, json.dumps(validated_scenario.dict()), scenario_type, scenario_result.get("source_model", "unknown"), session_id)
 
     return ScenarioResponse(
         status="success",
         scenario=validated_scenario,
         confidence=confidence_score,
-        scenario_type=scenario_type
+        scenario_type=scenario_type,
+        session_id=session_id
     )

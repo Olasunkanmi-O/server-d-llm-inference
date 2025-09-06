@@ -7,7 +7,7 @@ from app.schemas import TransactionUpdate
 
 
 llm = Llama(
-    model_path="models/mistral-7b-instruct-v0.1.Q4_K_M.gguf",
+    model_path="models/mistral-7b-instruct-v0.2.Q5_K_M.gguf",
     n_ctx=4096,
     n_threads=8
 )

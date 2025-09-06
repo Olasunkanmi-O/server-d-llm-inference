@@ -32,3 +32,4 @@ class ScenarioResponse(BaseModel):
     scenario: Scenario
     confidence: Optional[float] = None
     scenario_type: Optional[str] = "general"
+    session_id: Optional[str] = None

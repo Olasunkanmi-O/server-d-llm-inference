@@ -6,3 +6,4 @@ safetensors
 python-dotenv
 asyncpg
 llama-cpp-python
+transformers accelerate sentencepiece
