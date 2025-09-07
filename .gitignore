@@ -5,3 +5,4 @@ __pycache__/
 *.ckpt
 .env
 *.log
+llm-env/

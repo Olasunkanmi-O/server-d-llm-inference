@@ -39,10 +39,9 @@ def health_check():
         "engine": "llama.cpp"
     }
 
-@router.get("/ping")
+@router.get("/")
 async def ping():
-    return {"status": "Server D is alive"}
-
+    return {"status": "llm router active"}
 
 
 

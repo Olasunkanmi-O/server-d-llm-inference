@@ -1,3 +1,5 @@
+#app/routers/categorize.py
+
 from fastapi import APIRouter, Body
 from typing import List
 from app.schemas import TransactionUpdate, CategorizeResponse
@@ -14,3 +16,11 @@ async def categorize_route(transactions: List[TransactionUpdate] = Body(...)):
         transactions=categorized,
         low_confidence_count=low_conf
     )
+
+@router.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+@router.get("/")
+async def ping():
+    return {"status": "categorize router active"}

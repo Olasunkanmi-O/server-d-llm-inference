@@ -1,3 +1,5 @@
+#app/routers/scenario.py
+
 from fastapi import APIRouter, HTTPException
 from datetime import datetime, timedelta
 from app.schemas import ScenarioRequest, ScenarioResponse, Scenario, CashFlowProjection
@@ -20,6 +22,16 @@ def validate_flat_scenario(scenario: dict) -> bool:
         and isinstance(scenario["cash_flow_projection"], dict)
         and projection_keys.issubset(scenario["cash_flow_projection"].keys())
     )
+
+@router.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+@router.get("/")
+async def ping():
+    return {"status": "scenario router active"}
+
+
 
 @router.post("/", response_model=ScenarioResponse)
 async def generate_financial_scenario(payload: ScenarioRequest):

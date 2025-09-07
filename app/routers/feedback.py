@@ -4,6 +4,16 @@ from app.db.pool import get_pool
 
 router = APIRouter()
 
+@router.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+@router.get("/")
+async def ping():
+    return {"status": "feedback router active"}
+
+
+
 @router.post("/", response_model=FeedbackResponse)
 async def submit_feedback(payload: FeedbackRequest):
     pool = await get_pool()
