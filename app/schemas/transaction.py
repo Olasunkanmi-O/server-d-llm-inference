@@ -1,8 +1,9 @@
-from typing import Union
+# app/schemas/transaction.py
 from pydantic import BaseModel
+from typing import Union
 
 class Transaction(BaseModel):
-    date: str  # or datetime if you want to parse automatically
-    amount: Union[float, str]  # frontend might send string
+    date: str  # ISO string from frontend
+    amount: float
     description: str
     tax_category: str

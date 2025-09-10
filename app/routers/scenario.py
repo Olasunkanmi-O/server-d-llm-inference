@@ -1,5 +1,4 @@
-#app/routers/scenario.py
-
+# app/routers/scenario.py
 from fastapi import APIRouter, HTTPException
 from datetime import datetime, timedelta
 from app.schemas import ScenarioRequest, ScenarioResponse, Scenario, CashFlowProjection
@@ -31,26 +30,25 @@ async def health_check():
 async def ping():
     return {"status": "scenario router active"}
 
-
-
 @router.post("/", response_model=ScenarioResponse)
 async def generate_financial_scenario(payload: ScenarioRequest):
     print(f" Server D received scenario request from user {payload.user_id}")
     print(f" Server D received payload:\n{payload.dict()}")
-    print(f" Prompt:\n{payload.request[:300]}...")  # Truncate for readability
+
     user_id = payload.user_id
     session_id = payload.session_id or str(uuid.uuid4())
     scenario_type = payload.scenario_type
     timeframe_days = payload.timeframe_days
     aggregation_days = payload.aggregation_days
-    user_request = payload.request
-    hypothetical_changes = payload.hypothetical_changes
+    transactions = payload.request
+    hypothetical_changes = payload.hypothetical_changes or []
 
     pool = await get_pool()
     async with pool.acquire() as conn:
         recent_cutoff = datetime.now() - timedelta(days=timeframe_days)
         aggregation_cutoff = datetime.now() - timedelta(days=aggregation_days)
 
+        # Fetch recent transactions from DB if needed
         recent_transactions = await conn.fetch("""
             SELECT date, description, amount, COALESCE(category,'uncategorized') AS category
             FROM transactions
@@ -59,6 +57,7 @@ async def generate_financial_scenario(payload: ScenarioRequest):
             LIMIT 20
         """, user_id, recent_cutoff)
 
+        # Fetch aggregated transactions
         aggregated_transactions = await conn.fetch("""
             SELECT to_char(date, 'YYYY-MM') AS month, category,
                    SUM(amount) AS total_amount
@@ -69,6 +68,7 @@ async def generate_financial_scenario(payload: ScenarioRequest):
             LIMIT 12
         """, user_id, aggregation_cutoff, recent_cutoff)
 
+    # Build summaries
     recent_summary = "\n".join([
         f"- {tx['date'].strftime('%Y-%m-%d')}: {tx['description']} (£{tx['amount']}) [{tx['category']}]"
         for tx in recent_transactions
@@ -79,13 +79,14 @@ async def generate_financial_scenario(payload: ScenarioRequest):
         for row in aggregated_transactions
     ]) if aggregated_transactions else "No older transactions."
 
+    # Handle hypothetical changes
     total_income = sum(tx['amount'] for tx in recent_transactions if tx['amount'] > 0)
     total_expenses = sum(-tx['amount'] for tx in recent_transactions if tx['amount'] < 0)
-
     change_texts = []
+
     for change in hypothetical_changes:
         amt = change.amount
-        cat = change.category.lower()
+        cat = change.tax_category.lower()
         if amt > 0:
             total_income += amt
         else:
@@ -101,8 +102,9 @@ async def generate_financial_scenario(payload: ScenarioRequest):
         f"Net balance over this period: £{net_balance}\n"
     )
 
+    # Build LLM prompt
     full_prompt = build_scenario_prompt(
-        user_request,
+        transactions,
         recent_summary,
         agg_summary,
         hypothetical_summary,
@@ -154,13 +156,8 @@ async def generate_financial_scenario(payload: ScenarioRequest):
             )
         )
         confidence_score = None
-        return {
-            "response": validated_scenario.dict(),
-            "confidence": confidence_score,
-            "source_model": "server-d"
-        }
 
-
+    # Log conversation
     async with pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO conversation_logs (
