@@ -1,5 +1,8 @@
+from typing import List, Optional
 from pydantic import BaseModel
-from typing import Optional, List
+from app.schemas.transaction import Transaction
+from app.schemas.hypothetical import HypotheticalChange
+
 
 
 class HypotheticalChange(BaseModel):
@@ -9,7 +12,7 @@ class HypotheticalChange(BaseModel):
 
 class ScenarioRequest(BaseModel):
     user_id: int
-    request: str
+    request: List[Transaction]  # <-- changed from str to List[Transaction]
     session_id: Optional[str] = None
     scenario_type: Optional[str] = "general"
     timeframe_days: Optional[int] = 180

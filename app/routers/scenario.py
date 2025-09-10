@@ -35,6 +35,9 @@ async def ping():
 
 @router.post("/", response_model=ScenarioResponse)
 async def generate_financial_scenario(payload: ScenarioRequest):
+    print(f" Server D received scenario request from user {payload.user_id}")
+    print(f" Server D received payload:\n{payload.dict()}")
+    print(f" Prompt:\n{payload.request[:300]}...")  # Truncate for readability
     user_id = payload.user_id
     session_id = payload.session_id or str(uuid.uuid4())
     scenario_type = payload.scenario_type
@@ -151,6 +154,12 @@ async def generate_financial_scenario(payload: ScenarioRequest):
             )
         )
         confidence_score = None
+        return {
+            "response": validated_scenario.dict(),
+            "confidence": confidence_score,
+            "source_model": "server-d"
+        }
+
 
     async with pool.acquire() as conn:
         await conn.execute("""

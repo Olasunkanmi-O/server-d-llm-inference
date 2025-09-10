@@ -5,8 +5,8 @@ set -e  # stop on first error
 sudo apt update && sudo apt upgrade -y
 
 # Install build tools and Python (system-wide)
-sudo apt install -y build-essential cmake python3-dev python3-pip wget git
 sudo apt install -y python3.12-venv
+sudo apt install build-essential cmake python3-dev
 
 # Clone the project repo if not already present
 if [ ! -d "/home/ubuntu/server-d-llm-inference" ]; then
