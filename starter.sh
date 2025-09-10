@@ -6,6 +6,7 @@ sudo apt update && sudo apt upgrade -y
 
 # Install build tools and Python (system-wide)
 sudo apt install -y build-essential cmake python3-dev python3-pip wget git
+sudo apt install -y python3.12-venv
 
 # Clone the project repo if not already present
 if [ ! -d "/home/ubuntu/server-d-llm-inference" ]; then
@@ -16,8 +17,8 @@ fi
 mkdir -p /home/ubuntu/server-d-llm-inference/models
 
 # Install llama-cpp-python globally
-sudo pip3 install --upgrade pip
-sudo pip3 install llama-cpp-python --break-system-packages
+#
+#sudo pip3 install llama-cpp-python --break-system-packages
 
 # Download the quantized model (if not already present)
 MODEL_FILE="/home/ubuntu/server-d-llm-inference/models/mistral-7b-instruct-v0.2.Q5_K_M.gguf"
